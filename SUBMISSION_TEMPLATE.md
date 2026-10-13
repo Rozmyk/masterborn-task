@@ -14,6 +14,7 @@ List the ticket numbers you worked on, in the order you addressed them:
 2. **CFG-148**: Fixed the crash when disabling packaging by removing dependent add-ons and safely rendering the summary.
 3. **CFG-147**: Fixed Unicode support in share links, preserved compatibility with older links, and restored configuration names.
 4. **CFG-152**: Added keyboard navigation for colors, accessible controls, visible focus, and modal focus management.
+5. **CFG-143**: Fixed a resize event listener leak by removing the listener when the configurator unmounts.
 
 ### Tickets I Deprioritized
 
@@ -147,6 +148,32 @@ Native buttons, checkboxes, selects, and dialogs provide useful keyboard behavio
 **How did you verify it?**
 
 I tested color selection with arrows, Enter, and Space; quantity buttons; native select navigation; packaging and add-on controls; visible focus; and single-toggle mouse clicks in Chromium. I also checked unavailable colors and read-only controls with a browser-only fixture. For both dialogs, I checked initial focus, Tab wrapping, Escape, close buttons, backdrop clicks, and focus restoration, including saving, loading, and deleting drafts. These are targeted interaction checks, not a full WCAG audit.
+
+---
+
+### Issue 5: Resize event listener leak
+
+**Ticket(s):** CFG-143
+
+**What was the bug?**
+
+The resize effect registered a window event listener without removing it on cleanup. Listeners remained after the configurator unmounted and accumulated when it mounted again. React StrictMode also exposed the missing cleanup during development.
+
+**How did you find it?**
+
+I reviewed the resize effect and tracked active resize listeners in Chromium. Before the fix, the development build had two listeners after mounting, still had two after unmounting, and had four after mounting again.
+
+**How did you fix it?**
+
+I added an effect cleanup that calls `removeEventListener` with the same `handleResize` function used during registration.
+
+**Why this approach?**
+
+This fixes a confirmed resource leak without changing layout calculations or preview generation. I have not established that this leak explains all of the slowdown reported after 15–20 minutes of continuous use; that would require a longer profiling session.
+
+**How did you verify it?**
+
+In Chromium, I ran five mount/unmount cycles under StrictMode. Each mounted configurator had exactly one active listener, and the count returned to its baseline after every unmount. Resizing still updated the color column CSS variable with the expected value.
 
 ---
 

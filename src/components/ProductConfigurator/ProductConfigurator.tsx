@@ -212,6 +212,10 @@ export const ProductConfigurator: React.FC<ProductConfiguratorProps> = ({
 
     window.addEventListener('resize', handleResize);
     handleResize();
+
+    return () => {
+      window.removeEventListener('resize', handleResize);
+    };
   }, []);
 
   useEffect(() => {
