@@ -51,29 +51,27 @@ If a ticket was ambiguous enough that the right move was to escalate / ask PM / 
 
 ## Technical Write-Up
 
-### Critical Issues Found
+## Critical Issues Found
 
-Describe the most important bugs you identified:
+### Issue 1: Price calculation not updating
 
-#### Issue 1: [Title]
-
-**Ticket(s):** CFG-XXX
+**Ticket(s):** CFG-142
 
 **What was the bug?**
 
-[Describe the root cause]
+The price calculation hook compared `Date.now()` with a request counter returned by the API. Since these values represent different things, valid price responses were ignored, leaving the displayed price at $0.00.
 
 **How did you find it?**
 
-[Your debugging process]
+I reviewed the `usePriceCalculation` hook and the mocked API implementation. I noticed that `response.timestamp` was actually an incrementing request ID rather than a timestamp.
 
 **How did you fix it?**
 
-[Explain your solution]
+I replaced the incorrect timestamp comparison with a cleanup mechanism inside `useEffect`. When the configuration changes, previous requests are marked as outdated and their responses are ignored.
 
 **Why this approach?**
 
-[Any alternatives you considered]
+This solution is simple, prevents outdated responses from overwriting newer prices, and doesn't require changes to the API. It also handles component unmounting safely.
 
 ---
 

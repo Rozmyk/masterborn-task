@@ -6,7 +6,6 @@ import type {
   Configuration,
   Product,
   PriceBreakdown,
-  PriceResponse,
 } from '../components/ProductConfigurator/types';
 import { calculatePrice } from '../services/api';
 
@@ -21,61 +20,68 @@ interface UsePriceCalculationResult {
 /**
  * Custom hook for managing price calculation
  */
+
 export function usePriceCalculation(
   config: Configuration | null,
   product: Product,
 ): UsePriceCalculationResult {
   const [price, setPrice] = useState<PriceBreakdown | null>(null);
-  const [formattedTotal, setFormattedTotal] = useState<string>('$0.00');
+  const [formattedTotal, setFormattedTotal] = useState('$0.00');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [refetchKey, setRefetchKey] = useState(0);
 
-  // Track latest request timestamp to prevent stale responses from overwriting newer ones.
-  // Guards against race conditions when the user changes options in rapid succession.
-  const latestRequestRef = useRef<number>(0);
+  useEffect(() => {
+    let ignore = false;
 
-  const fetchPrice = useCallback(async () => {
-    if (!config) {
-      setPrice(null);
-      setFormattedTotal('$0.00');
-      return;
-    }
+    const fetchPrice = async () => {
+      if (!config) {
+        setPrice(null);
+        setFormattedTotal('$0.00');
+        setIsLoading(false);
+        setError(null);
+        return;
+      }
 
-    setIsLoading(true);
-    setError(null);
+      setIsLoading(true);
+      setError(null);
 
-    const requestTime = Date.now();
-    latestRequestRef.current = requestTime;
+      try {
+        const response = await calculatePrice(config, product);
 
-    try {
-      const response: PriceResponse = await calculatePrice(config, product);
+        if (ignore) return;
 
-      if (response.timestamp >= latestRequestRef.current) {
         setPrice(response.breakdown);
         setFormattedTotal(response.formattedTotal);
-      }
-    } catch {
-      // Only set error if this is still the latest request
-      if (requestTime === latestRequestRef.current) {
+      } catch {
+        if (ignore) return;
+
         setError('ERR_PRICE_CALC_FAILED');
         setPrice(null);
+      } finally {
+        if (!ignore) {
+          setIsLoading(false);
+        }
       }
-    } finally {
-      setIsLoading(false);
-    }
-  }, [config, product]);
+    };
 
-  // Fetch price when config changes
-  useEffect(() => {
-    fetchPrice();
-  }, [config?.selections, config?.addOns, config?.quantity]);
+    void fetchPrice();
+
+    return () => {
+      ignore = true;
+    };
+  }, [config, product, refetchKey]);
+
+  const refetch = useCallback(() => {
+    setRefetchKey((prev) => prev + 1);
+  }, []);
 
   return {
     price,
     formattedTotal,
     isLoading,
     error,
-    refetch: fetchPrice,
+    refetch,
   };
 }
 
