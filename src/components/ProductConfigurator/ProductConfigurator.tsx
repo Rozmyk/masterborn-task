@@ -268,8 +268,9 @@ export const ProductConfigurator: React.FC<ProductConfiguratorProps> = ({
   useEffect(() => {
     if (showShareModal) {
       const encoded = encodeConfigurationToUrl(currentConfig);
-      const url = `${window.location.origin}${window.location.pathname}?config=${encoded}`;
-      setShareUrl(url);
+      const url = new URL(window.location.href);
+      url.searchParams.set('config', encoded);
+      setShareUrl(url.toString());
     }
   }, [showShareModal, currentConfig]);
 
@@ -283,6 +284,7 @@ export const ProductConfigurator: React.FC<ProductConfiguratorProps> = ({
         if (decoded.selections) setSelections(decoded.selections);
         if (decoded.addOns) setSelectedAddOns(decoded.addOns);
         if (decoded.quantity) setQuantity(decoded.quantity);
+        setDraftName(decoded.name ?? '');
       }
     }
   }, []);

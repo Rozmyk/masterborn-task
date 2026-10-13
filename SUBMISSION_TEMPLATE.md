@@ -10,9 +10,9 @@ Total time: **\_\_** (approximate)
 
 List the ticket numbers you worked on, in the order you addressed them:
 
-1. **CFG-XXX**: [Brief description of what you did]
-2. **CFG-XXX**: [Brief description of what you did]
-3. ...
+1. **CFG-142**: Fixed price updates and prevented outdated price responses from overwriting newer results.
+2. **CFG-148**: Fixed the crash when disabling packaging by removing dependent add-ons and safely rendering the summary.
+3. **CFG-147**: Fixed Unicode support in share links, preserved compatibility with older links, and restored configuration names.
 
 ### Tickets I Deprioritized
 
@@ -94,6 +94,32 @@ I updated the handler to remove dependent add-ons whenever their requirement is 
 **Why this approach?**
 
 This keeps selected add-ons consistent with the changed option without mutating React state. It preserves unrelated add-ons and prevents the summary from crashing on missing or unavailable entries in a loaded configuration.
+
+---
+
+### Issue 3: Broken share links for configurations with special characters
+
+**Ticket(s):** CFG-147
+
+**What was the bug?**
+
+The encoder passed JSON directly to `btoa`, which cannot encode characters such as Polish diacritics and emoji. Base64 was also inserted directly into the URL, allowing `+` characters to become spaces when read through `URLSearchParams`. Additionally, the component did not restore the configuration name from the decoded link.
+
+**How did you find it?**
+
+I traced the share link encoder, decoder, and component effects. Encoding the example name `Żółć test 🎨` threw an `InvalidCharacterError`, and a separate check confirmed that raw `+` characters were changed by URL parsing. These failures came from the data handling rather than a development-only build issue.
+
+**How did you fix it?**
+
+I encoded the JSON as UTF-8 bytes before converting it to Base64 and decoded those bytes using `TextDecoder`. For older links, the decoder falls back to the original Latin-1 representation when UTF-8 decoding fails and restores spaces to `+`. Share URLs now use `URL.searchParams.set`, preserving other query parameters and the URL fragment. Loading a shared configuration also restores its name.
+
+**Why this approach?**
+
+This supports Unicode without adding dependencies or changing the data fields stored in the link. It also preserves support for older links and keeps malformed Base64 or JSON from crashing the application.
+
+**How did you verify it?**
+
+I checked encoding and decoding of the ticket's example values, Base64 URL characters, older ASCII and Latin-1 links, and malformed input. In Chromium against the production build, I verified sharing, reopening, and resharing a configuration named `Żółć test 🎨`, including restoration of its name and quantity. The build and formatting checks passed; ESLint reported only the existing component diagnostics.
 
 ---
 

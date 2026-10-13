@@ -220,7 +220,9 @@ export function encodeConfigurationToUrl(config: Configuration): string {
     n: config.name,
   });
 
-  return btoa(data);
+  const bytes = new TextEncoder().encode(data);
+  const binary = Array.from(bytes, (byte) => String.fromCharCode(byte)).join('');
+  return btoa(binary);
 }
 
 /**
@@ -228,7 +230,16 @@ export function encodeConfigurationToUrl(config: Configuration): string {
  */
 export function decodeConfigurationFromUrl(encoded: string): Partial<Configuration> | null {
   try {
-    const data = JSON.parse(atob(encoded));
+    const binary = atob(encoded.replace(/ /g, '+'));
+    const bytes = Uint8Array.from(binary, (character) => character.charCodeAt(0));
+    let json: string;
+    try {
+      json = new TextDecoder('utf-8', { fatal: true }).decode(bytes);
+    } catch {
+      // Older links encoded JSON directly as Latin-1 rather than UTF-8.
+      json = binary;
+    }
+    const data = JSON.parse(json);
     return {
       selections: data.s || {},
       addOns: data.a || [],
