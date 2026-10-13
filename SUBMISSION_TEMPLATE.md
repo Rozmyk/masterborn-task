@@ -13,6 +13,7 @@ List the ticket numbers you worked on, in the order you addressed them:
 1. **CFG-142**: Fixed price updates and prevented outdated price responses from overwriting newer results.
 2. **CFG-148**: Fixed the crash when disabling packaging by removing dependent add-ons and safely rendering the summary.
 3. **CFG-147**: Fixed Unicode support in share links, preserved compatibility with older links, and restored configuration names.
+4. **CFG-152**: Added keyboard navigation for colors, accessible controls, visible focus, and modal focus management.
 
 ### Tickets I Deprioritized
 
@@ -35,9 +36,9 @@ List any tickets where you couldn't proceed due to ambiguity:
 
 Our board labels aren't always right. List tickets where you disagreed with the label (e.g. a Low that's actually High, a High that's actually Low, a Medium that's actually Unclear) and explain why. If you didn't disagree with any, say so.
 
-| Ticket  | Label on board | Your read    | Why                                         |
-| ------- | -------------- | ------------ | ------------------------------------------- |
-| CFG-XXX | e.g. ⚪ Low    | e.g. 🟠 High | [What in the description changed your read] |
+| Ticket  | Label on board | Your read | Why                                                                                                                                                                              |
+| ------- | -------------- | --------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| CFG-152 | ⚪ Low         | 🟠 High   | Keyboard users could not fully configure the product. The ticket also identifies accessibility commitments to TechStyle, making this a demo blocker rather than cosmetic polish. |
 
 ### Tickets Where You Stopped to Ask Instead of Implementing
 
@@ -120,6 +121,32 @@ This supports Unicode without adding dependencies or changing the data fields st
 **How did you verify it?**
 
 I checked encoding and decoding of the ticket's example values, Base64 URL characters, older ASCII and Latin-1 links, and malformed input. In Chromium against the production build, I verified sharing, reopening, and resharing a configuration named `Żółć test 🎨`, including restoration of its name and quantity. The build and formatting checks passed; ESLint reported only the existing component diagnostics.
+
+---
+
+### Issue 4: Incomplete keyboard navigation
+
+**Ticket(s):** CFG-152
+
+**What was the bug?**
+
+Color swatches were non-focusable elements with click handlers. Modals did not move focus inside on opening or keep keyboard navigation within them. Some controls lacked explicit focus styles or accessible names, and the packaging toggle's keyboard handler could change the configuration in read-only mode.
+
+**How did you find it?**
+
+I reviewed the controls and modal handlers, then checked keyboard interaction in Chromium. The dropdowns mentioned in the ticket are native select elements in this version and already support arrow keys. During testing, I also found that native dialogs alone allowed focus to leave the dialog for the browser interface at the Tab boundary.
+
+**How did you fix it?**
+
+I made color swatches named radio buttons with a single Tab stop and arrow-key navigation that skips unavailable colors. The packaging toggle now uses a native button, and add-ons use labeled checkboxes with an onChange handler. I added visible focus styles and replaced the modal overlays with native dialogs. Dialogs focus the close button on opening, wrap Tab navigation, and return focus to their trigger after closing, saving, or loading. Deleting the focused draft moves focus to the close button.
+
+**Why this approach?**
+
+Native buttons, checkboxes, selects, and dialogs provide useful keyboard behavior without new dependencies. The additional focus handling covers the modal boundary cases while preserving the existing layout and mouse interactions. I treated this as high priority because it blocks keyboard users and the ticket explicitly connects accessibility to the client's demo requirements.
+
+**How did you verify it?**
+
+I tested color selection with arrows, Enter, and Space; quantity buttons; native select navigation; packaging and add-on controls; visible focus; and single-toggle mouse clicks in Chromium. I also checked unavailable colors and read-only controls with a browser-only fixture. For both dialogs, I checked initial focus, Tab wrapping, Escape, close buttons, backdrop clicks, and focus restoration, including saving, loading, and deleting drafts. These are targeted interaction checks, not a full WCAG audit.
 
 ---
 
