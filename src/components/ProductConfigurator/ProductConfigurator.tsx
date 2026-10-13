@@ -190,6 +190,10 @@ export const ProductConfigurator: React.FC<ProductConfiguratorProps> = ({
     return map;
   }, [product.addOns, selections]);
 
+  const summaryAddOns = selectedAddOns
+    .map((id) => availableAddOns.get(id))
+    .filter((addOn): addOn is AddOn => addOn !== undefined);
+
   // -------------------------------------------------------------------------
   // Effects
   // -------------------------------------------------------------------------
@@ -294,24 +298,15 @@ export const ProductConfigurator: React.FC<ProductConfiguratorProps> = ({
         [optionId]: value,
       }));
 
-      const option = product.options.find((o) => o.id === optionId);
       // Clean up any dependent add-ons whose requirement is no longer met.
-      // Toggles are handled in handleAddOnToggle, so we only need to do this for select options.
-      if (option && option.type === 'select') {
-        const dependentAddOns = product.addOns.filter((a) => a.dependsOn?.optionId === optionId);
-
-        for (const addOn of dependentAddOns) {
-          if (addOn.dependsOn && value !== addOn.dependsOn.requiredValue) {
-            const index = selectedAddOns.indexOf(addOn.id);
-            if (index > -1) {
-              selectedAddOns.splice(index, 1);
-              setSelectedAddOns(selectedAddOns);
-            }
-          }
-        }
-      }
+      setSelectedAddOns((prev) =>
+        prev.filter((id) => {
+          const addOn = product.addOns.find((item) => item.id === id);
+          return addOn?.dependsOn?.optionId !== optionId || addOn.dependsOn.requiredValue === value;
+        }),
+      );
     },
-    [product.options, product.addOns, selectedAddOns],
+    [product.addOns],
   );
 
   const handleAddOnToggle = useCallback(
@@ -927,15 +922,12 @@ export const ProductConfigurator: React.FC<ProductConfiguratorProps> = ({
               <span>Quantity:</span>
               <span>{quantity}</span>
             </div>
-            {selectedAddOns.length > 0 && (
+            {summaryAddOns.length > 0 && (
               <div className="config-summary-item">
-                <span>Add-ons ({selectedAddOns.length}):</span>
+                <span>Add-ons ({summaryAddOns.length}):</span>
                 <span>
-                  {selectedAddOns
-                    .map((id) => {
-                      const addOn = availableAddOns.get(id)!;
-                      return formatPrice(addOn.price, product.currency);
-                    })
+                  {summaryAddOns
+                    .map((addOn) => formatPrice(addOn.price, product.currency))
                     .join(' + ')}
                 </span>
               </div>

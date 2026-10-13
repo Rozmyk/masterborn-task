@@ -75,9 +75,25 @@ This solution is simple, prevents outdated responses from overwriting newer pric
 
 ---
 
-#### Issue 2: [Title]
+### Issue 2: Crash when deselecting packaging
 
-[Same structure as above]
+**Ticket(s):** CFG-148
+
+**What was the bug?**
+
+Dependent add-ons were only removed when a select option changed. Since packaging is a toggle, disabling it left Gift Wrap selected even though it was no longer available. The summary then tried to read `.price` from an undefined add-on, crashing the application.
+
+**How did you find it?**
+
+I traced the option change handler and the add-on summary in `ProductConfigurator`. The handler skipped toggle options, while the summary assumed that every selected add-on existed in `availableAddOns`.
+
+**How did you fix it?**
+
+I updated the handler to remove dependent add-ons whenever their requirement is no longer met, regardless of the option type. I also replaced the array mutation with a functional state update using `filter`. The summary now uses one filtered list of existing, available add-ons for its count, prices, and visibility.
+
+**Why this approach?**
+
+This keeps selected add-ons consistent with the changed option without mutating React state. It preserves unrelated add-ons and prevents the summary from crashing on missing or unavailable entries in a loaded configuration.
 
 ---
 
