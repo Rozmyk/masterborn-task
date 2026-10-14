@@ -1,59 +1,62 @@
-# Submission: [Your Name]
+# Submission: Michal Rozmyslowski
 
 ## Time Spent
 
-Total time: **\_\_** (approximate)
+Total time: **approximately 3 hours**.
 
 ## Ticket Triage
 
 ### Tickets I Addressed
 
-List the ticket numbers you worked on, in the order you addressed them:
-
-1. **CFG-142**: Fixed price updates and prevented outdated price responses from overwriting newer results.
-2. **CFG-148**: Fixed the crash when disabling packaging by removing dependent add-ons and safely rendering the summary.
-3. **CFG-147**: Fixed Unicode support in share links, preserved compatibility with older links, and restored configuration names.
-4. **CFG-152**: Added keyboard navigation for colors, accessible controls, visible focus, and modal focus management.
-5. **CFG-143**: Fixed a resize event listener leak by removing the listener when the configurator unmounts.
+1. **CFG-142**: Fixed price updates, ignored outdated responses, and avoided recalculation for draft-name changes.
+2. **CFG-148**: Removed unavailable dependent add-ons without mutating state and made the summary safe for missing entries.
+3. **CFG-147**: Added versioned Unicode share links, original-format compatibility, payload validation, and configuration-name restoration.
+4. **CFG-152**: Added keyboard navigation, accessible control names, visible focus, and modal focus management.
+5. **CFG-143**: Removed the resize listener on cleanup; verified that repeated mounts no longer accumulate listeners.
 
 ### Tickets I Deprioritized
 
-List tickets you intentionally skipped and why:
-
-| Ticket  | Reason                 |
-| ------- | ---------------------- |
-| CFG-XXX | [Why you skipped this] |
-| CFG-XXX | [Why you skipped this] |
+| Ticket  | Reason                                                                                                                                                                    |
+| ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| CFG-146 | ISO storage and local-time formatting are already present. I did not establish a timezone conversion defect; a concrete failing timestamp and timezone are needed.        |
+| CFG-149 | The existing `price-loading` class already dims the price during calculation. Additional loading polish was lower priority than correctness.                              |
+| CFG-150 | The screenshot is missing. The current layout uses flexbox and does not consume `--color-columns`, so changing the suggested calculation alone would not establish a fix. |
+| CFG-151 | Partially improved: validation failures and their reasons are visible. A full rewrite of technical error messages and recovery actions remains outside scope.             |
+| CFG-153 | Comparing configurations is a substantial new feature and does not fit this exercise's time budget.                                                                       |
+| CFG-155 | Dark mode is useful but was explicitly described as non-critical for the demo.                                                                                            |
+| CFG-156 | The listed option renders already have keys; colors and add-ons now use stable IDs as part of CFG-152. I did not claim a separate missing-key fix.                        |
+| CFG-157 | Reliable dirty-state tracking needs to precede navigation warnings. The exact host navigation and Save & Close behavior also need agreement.                              |
+| CFG-158 | `currentConfig` is already memoized and the demo imports a stable product object. Further optimization needs profiling rather than another blanket `useMemo`.             |
 
 ### Tickets That Need Clarification
 
-List any tickets where you couldn't proceed due to ambiguity:
-
-| Ticket  | Question                  |
-| ------- | ------------------------- |
-| CFG-XXX | [What you needed to know] |
+| Ticket            | Question                                                                                                                       |
+| ----------------- | ------------------------------------------------------------------------------------------------------------------------------ |
+| CFG-144 / CFG-145 | Should Quick Add be removed, or retained with the shortcut requested for the TechStyle demo?                                   |
+| CFG-154           | What are the approved inclusive quantity thresholds and discount percentages? The ticket, code, and business context disagree. |
 
 ### Tickets With a Misleading Priority Label
 
-Our board labels aren't always right. List tickets where you disagreed with the label (e.g. a Low that's actually High, a High that's actually Low, a Medium that's actually Unclear) and explain why. If you didn't disagree with any, say so.
-
-| Ticket  | Label on board | Your read | Why                                                                                                                                                                              |
-| ------- | -------------- | --------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| CFG-152 | ⚪ Low         | 🟠 High   | Keyboard users could not fully configure the product. The ticket also identifies accessibility commitments to TechStyle, making this a demo blocker rather than cosmetic polish. |
+| Ticket  | Label on board | Your read                                     | Why                                                                                                                     |
+| ------- | -------------- | --------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
+| CFG-152 | Low            | High                                          | Keyboard users could not fully configure the product, and the ticket identifies accessibility commitments to TechStyle. |
+| CFG-145 | High           | Potential demo blocker, pending clarification | The ticket calls the shortcut mandatory for the demo, but CFG-144 requests removal of the same feature.                 |
+| CFG-158 | High           | Needs profiling before implementation         | The proposed memoization is already present in the relevant path; the suggested fix does not match the current code.    |
 
 ### Tickets Where You Stopped to Ask Instead of Implementing
 
-If a ticket was ambiguous enough that the right move was to escalate / ask PM / gather more context rather than ship a fix, list it here. We value this signal — picking one interpretation blindly and shipping it can cost more than stopping to ask.
+These are questions I would escalate in a real team; no PM, customer, or Finance contact was made during this exercise.
 
-| Ticket  | Who would you ask | What you'd ask                                    |
-| ------- | ----------------- | ------------------------------------------------- |
-| CFG-XXX | e.g. PM / Finance | [The specific question + why you can't answer it] |
+| Ticket            | Who would you ask                      | What you'd ask                                                                                                                                                                                                                            |
+| ----------------- | -------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| CFG-144 / CFG-145 | Product PM and TechStyle account owner | Which requirement takes precedence for the demo: removal or the mandatory keyboard shortcut? I left Quick Add in place without adding a shortcut.                                                                                         |
+| CFG-154           | PM and Finance                         | Confirm the thresholds and rates for each tier. Code applies discounts above 10 and 50, while the UI suggests inclusive thresholds; the ticket also mentions 15% where code and context specify 10%. I left the pricing policy unchanged. |
 
 ---
 
 ## Technical Write-Up
 
-## Critical Issues Found
+### Critical Issues Found
 
 ### Issue 1: Price calculation not updating
 
@@ -69,11 +72,15 @@ I reviewed the `usePriceCalculation` hook and the mocked API implementation. I n
 
 **How did you fix it?**
 
-I replaced the incorrect timestamp comparison with a cleanup mechanism inside `useEffect`. When the configuration changes, previous requests are marked as outdated and their responses are ignored.
+I replaced the incorrect timestamp comparison with a cleanup mechanism inside `useEffect`. When pricing inputs change, previous requests are marked as outdated and their responses are ignored. The effect tracks selections, add-ons, quantity, and product rather than the entire configuration, so editing the draft name does not trigger another calculation. A ref updated in a preceding effect keeps request metadata current for the next calculation or explicit refetch.
 
 **Why this approach?**
 
-This solution is simple, prevents outdated responses from overwriting newer prices, and doesn't require changes to the API. It also handles component unmounting safely.
+This prevents outdated responses from overwriting newer prices without changing the API. It also handles component unmounting safely and avoids unnecessary calculations for metadata-only edits.
+
+**How did you verify it?**
+
+A Chromium fixture with controlled API responses verified that metadata edits do not refetch, while changes to pricing inputs and explicit refetch do. It also checked current request metadata, out-of-order responses, outdated failures, resetting a null configuration, and unmounting.
 
 ---
 
@@ -113,11 +120,11 @@ I traced the share link encoder, decoder, and component effects. Encoding the ex
 
 **How did you fix it?**
 
-I encoded the JSON as UTF-8 bytes before converting it to Base64 and decoded those bytes using `TextDecoder`. For older links, the decoder falls back to the original Latin-1 representation when UTF-8 decoding fails and restores spaces to `+`. Share URLs now use `URL.searchParams.set`, preserving other query parameters and the URL fragment. Loading a shared configuration also restores its name.
+I encoded the JSON as UTF-8 bytes before converting it to Base64 and decoded those bytes using `TextDecoder`. New links have a `v1:` prefix identifying UTF-8; unversioned links use the original Latin-1 encoding, without guessing from the bytes. The decoder restores spaces to `+` and checks the decoded object and field types before passing data to the component. Invalid structures, non-string add-on IDs, and non-positive or non-integer quantities are rejected. Share URLs now use `URL.searchParams.set`, preserving other query parameters and the URL fragment. Loading a shared configuration also restores its name.
 
 **Why this approach?**
 
-This supports Unicode without adding dependencies or changing the data fields stored in the link. It also preserves support for older links and keeps malformed Base64 or JSON from crashing the application.
+This supports Unicode without adding dependencies or changing the data fields stored in the link. It preserves original Latin-1 links, including byte sequences that are also valid UTF-8, and rejects malformed Base64, JSON, or payload shapes before rendering. Product-specific option validity remains the responsibility of configuration validation.
 
 **How did you verify it?**
 
@@ -179,10 +186,12 @@ In Chromium, I ran five mount/unmount cycles under StrictMode. Each mounted conf
 
 ### Other Changes Made
 
-Brief description of any other modifications:
-
-- [Change 1]
-- [Change 2]
+- Removed the additional npm lockfile; `pnpm-lock.yaml` remains the dependency lockfile.
+- Added structural validation and an explicit encoding version to shared configuration payloads during follow-up review.
+- Associated validation results with the configuration they checked. Pending or failed validation blocks both cart actions; invalid configurations display their validation messages rather than a success badge.
+- Cleared the displayed price on calculation failure and blocked both cart actions without a valid price.
+- Verified price failure/recovery, pending and failed validation, and correction of an invalid add-on configuration in Chromium using controlled API responses.
+- Kept the initial fixes in separate ticket commits, followed by review corrections; no broad component refactor or new runtime dependencies.
 
 ---
 
@@ -190,36 +199,39 @@ Brief description of any other modifications:
 
 ### Things I Noticed But Didn't Fix
 
-List any issues you noticed but intentionally left:
-
-| Issue   | Why I Left It                                         |
-| ------- | ----------------------------------------------------- |
-| [Issue] | [Reason - out of scope, time, needs discussion, etc.] |
+| Issue                                                                                                           | Why I Left It                                                                                                                                                                     |
+| --------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Business validation does not fully check required options, allowed values, or product-specific quantity limits. | Needs a focused business-validation change. Payload shape checks do not replace product-specific validation.                                                                      |
+| Dirty state is set on initial render, and loading a draft does not fully restore its name and save metadata.    | Separate draft-state behavior; relevant groundwork for CFG-157.                                                                                                                   |
+| Discount calculations and next-tier hints disagree at boundaries.                                               | Changing prices without an approved specification risks implementing the wrong business rule.                                                                                     |
+| Existing ESLint findings remain.                                                                                | Current full lint reports 6 errors and 1 warning, down from 8 errors and 2 warnings in the initial code. I did not disable rules or broaden the task into unrelated lint cleanup. |
+| The debounced pricing hook is unused by the configurator and still has separate state-handling issues.          | The active pricing path was the focus of CFG-142.                                                                                                                                 |
+| Regression checks are not committed as a test suite.                                                            | Verification used temporary scripts and browser fixtures; making them reproducible in the repository is a follow-up.                                                              |
 
 ### Potential Improvements for the Future
 
-If you had more time, what would you improve?
-
-1. [Improvement 1]
-2. [Improvement 2]
+1. Add maintained regression tests for async pricing, link parsing, dependent add-ons, and keyboard interaction.
+2. Complete product-specific validation and replace remaining technical errors with actionable messages.
+3. Profile a sustained session and extract focused components only where measurements or maintainability justify it.
 
 ---
 
 ## Questions for the Team
 
-Questions you would ask in a real scenario:
-
-1. [Question 1]
-2. [Question 2]
+1. Who owns the final Quick Add decision for the TechStyle demo?
+2. Which approved pricing specification defines quantity thresholds and discount rates?
+3. Can QA provide the mobile alignment screenshot, viewport, and a concrete failing timezone example?
+4. What browsers and embedding environments must the widget support, particularly for modal behavior and host navigation?
 
 ---
 
 ## Assumptions Made
 
-List any assumptions you made to proceed:
-
-1. [Assumption 1]
-2. [Assumption 2]
+1. Changing an option removes selected add-ons whose requirement is no longer met; re-enabling that option does not automatically reselect them.
+2. New share links use `v1:` plus UTF-8 Base64. Unversioned links retain the original Latin-1 interpretation. Links created by the intermediate, unversioned UTF-8 implementation must be regenerated; those bytes cannot be reliably distinguished from legacy Latin-1.
+3. Missing optional payload fields retain the existing defaults. Invalid field types and invalid quantities are rejected; product-specific limits and allowed choices belong in business validation.
+4. Changes use immutable React state. Price calculation responds to pricing inputs, not the configuration name or timestamps.
+5. Keyboard checks target the reported workflows in Chromium; they do not constitute a complete WCAG compliance audit.
 
 ---
 
@@ -227,33 +239,24 @@ List any assumptions you made to proceed:
 
 ### What went well?
 
-[Your reflection]
+The fixes addressed observable failures and stayed tied to individual tickets. Checking the code against the ticket descriptions helped avoid unnecessary memoization, rewriting native selects, or changing ambiguous discount rules.
 
 ### What was challenging?
 
-[Your reflection]
+Several descriptions conflicted with the implementation or with other tickets. Follow-up review also exposed unnecessary recalculation during name edits and ambiguous legacy link decoding, which required tightening the initial fixes.
 
 ### What would you do differently with more time?
 
-[Your reflection]
+I would preserve the regression checks in the repository, complete a longer performance profile, and resolve the product questions before expanding the feature work.
 
 ---
 
-## AI Assistance Notes (optional)
+## AI Assistance Notes
 
-If you used AI tools (Copilot, Claude, Cursor, ChatGPT, etc.), we'd love a short note on how. **We don't score the fact that you used AI — we score the quality of your reasoning and verification.**
-
-Useful things to share:
-
-- What kinds of prompts you sent (paraphrase is fine, no need to paste logs)
-- Where the AI helped and where you overrode it
-- Anything the AI suggested that you rejected — and why
-- Anything you verified manually that the AI got wrong
+I used Codex to inspect code and tickets, prepare scoped fixes, review commits, and run build, lint, and Chromium checks. I requested work ticket by ticket and limited unrelated changes. The assistant generated and executed the temporary browser fixtures; these were not a separate manual QA audit. Its review found gaps in the earlier pricing and link fixes, which were then addressed. Business conflicts around Quick Add and discounts remain documented rather than guessed.
 
 ---
 
 ## Additional Notes
 
-Anything else you want us to know:
-
-[Your notes]
+Verification includes TypeScript and the production build, formatting checks, and targeted Chromium scenarios. The known lint findings remain; commit hooks were bypassed for those existing failures without changing the lint configuration. The resize cleanup fixes a demonstrated leak, but a full explanation of the reported 15–20 minute slowdown would require additional profiling.

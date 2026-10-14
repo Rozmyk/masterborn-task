@@ -30,12 +30,22 @@ export function usePriceCalculation(
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [refetchKey, setRefetchKey] = useState(0);
+  const latestConfigRef = useRef(config);
+  const selections = config?.selections;
+  const addOns = config?.addOns;
+  const quantity = config?.quantity;
+
+  // Keep request metadata current without recalculating when only the name changes.
+  useEffect(() => {
+    latestConfigRef.current = config;
+  }, [config]);
 
   useEffect(() => {
     let ignore = false;
+    const requestConfig = latestConfigRef.current;
 
     const fetchPrice = async () => {
-      if (!config) {
+      if (!requestConfig) {
         setPrice(null);
         setFormattedTotal('$0.00');
         setIsLoading(false);
@@ -47,7 +57,7 @@ export function usePriceCalculation(
       setError(null);
 
       try {
-        const response = await calculatePrice(config, product);
+        const response = await calculatePrice(requestConfig, product);
 
         if (ignore) return;
 
@@ -58,6 +68,7 @@ export function usePriceCalculation(
 
         setError('ERR_PRICE_CALC_FAILED');
         setPrice(null);
+        setFormattedTotal('—');
       } finally {
         if (!ignore) {
           setIsLoading(false);
@@ -70,7 +81,7 @@ export function usePriceCalculation(
     return () => {
       ignore = true;
     };
-  }, [config, product, refetchKey]);
+  }, [selections, addOns, quantity, product, refetchKey]);
 
   const refetch = useCallback(() => {
     setRefetchKey((prev) => prev + 1);

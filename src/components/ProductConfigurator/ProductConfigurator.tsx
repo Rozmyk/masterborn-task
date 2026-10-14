@@ -139,8 +139,11 @@ export const ProductConfigurator: React.FC<ProductConfiguratorProps> = ({
   const [showShareModal, setShowShareModal] = useState(false);
   const [drafts, setDrafts] = useState<Draft[]>([]);
 
-  const [validation, setValidation] = useState<ValidationResult | null>(null);
-  const [isValid, setIsValid] = useState(false);
+  const [validationState, setValidationState] = useState<{
+    config: Configuration;
+    result: ValidationResult | null;
+    failed: boolean;
+  } | null>(null);
 
   const [previewUrl, setPreviewUrl] = useState<string>(product.imageUrl);
 
@@ -179,6 +182,9 @@ export const ProductConfigurator: React.FC<ProductConfiguratorProps> = ({
     isLoading: isPriceLoading,
     error: priceError,
   } = usePriceCalculation(currentConfig, product);
+
+  const validation = validationState?.config === currentConfig ? validationState.result : null;
+  const validationFailed = validationState?.config === currentConfig && validationState.failed;
 
   const appliedDiscount = getAppliedDiscountPercentage(quantity);
   const nextTier = getNextDiscountTier(quantity);
@@ -225,10 +231,13 @@ export const ProductConfigurator: React.FC<ProductConfiguratorProps> = ({
       try {
         const result = await validateConfiguration(currentConfig, product);
         if (!cancelled) {
-          setValidation(result);
-          setIsValid(true);
+          setValidationState({ config: currentConfig, result, failed: false });
         }
-      } catch {}
+      } catch {
+        if (!cancelled) {
+          setValidationState({ config: currentConfig, result: null, failed: true });
+        }
+      }
     };
 
     validate();
@@ -412,6 +421,7 @@ export const ProductConfigurator: React.FC<ProductConfiguratorProps> = ({
   }, []);
 
   const handleAddToCart = useCallback(() => {
+    if (readOnly || isPriceLoading || !price) return;
     if (!validation?.valid) {
       setError(validation?.errors[0]?.code || ERROR_CODES.UNKNOWN);
       return;
@@ -420,13 +430,13 @@ export const ProductConfigurator: React.FC<ProductConfiguratorProps> = ({
     if (price && onAddToCart) {
       onAddToCart(currentConfig, price);
     }
-  }, [validation, price, currentConfig, onAddToCart]);
+  }, [validation, price, currentConfig, onAddToCart, readOnly, isPriceLoading]);
 
   const handleQuickAdd = useCallback(() => {
-    if (price && onAddToCart) {
+    if (!readOnly && !isPriceLoading && validation?.valid && price && onAddToCart) {
       onAddToCart(currentConfig, price);
     }
-  }, [price, currentConfig, onAddToCart]);
+  }, [price, currentConfig, onAddToCart, readOnly, isPriceLoading, validation]);
 
   const handleCopyShareUrl = useCallback(() => {
     navigator.clipboard
@@ -924,6 +934,21 @@ export const ProductConfigurator: React.FC<ProductConfiguratorProps> = ({
         </div>
       )}
 
+      {validationFailed && (
+        <div className="error-message" role="alert">
+          Unable to validate your configuration. Change an option to try again.
+        </div>
+      )}
+      {validation?.errors.map((issue, index) => (
+        <div
+          key={`${issue.code}-${issue.optionId ?? index}`}
+          className="error-message"
+          role="alert"
+        >
+          {issue.message}
+        </div>
+      ))}
+
       {validation?.warnings.map((warning, i) => (
         <div key={i} className="validation-warning">
           {warning.message}
@@ -956,7 +981,13 @@ export const ProductConfigurator: React.FC<ProductConfiguratorProps> = ({
             {renderPriceBreakdown()}
 
             <div className="validation-indicator">
-              {isValid ? '✓ Configuration validated' : '⏳ Validating…'}
+              {validationFailed
+                ? 'Validation unavailable'
+                : validation
+                  ? validation.valid
+                    ? '✓ Configuration validated'
+                    : 'Please correct your configuration'
+                  : '⏳ Validating…'}
             </div>
 
             <div className="quick-add-section">
@@ -973,7 +1004,7 @@ export const ProductConfigurator: React.FC<ProductConfiguratorProps> = ({
           <button
             className="btn btn-success btn-block"
             onClick={handleAddToCart}
-            disabled={readOnly || !validation?.valid || isPriceLoading}
+            disabled={readOnly || !validation?.valid || isPriceLoading || !price}
           >
             {isPriceLoading ? 'Calculating...' : 'Add to Cart'}
           </button>
