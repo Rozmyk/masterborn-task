@@ -26,6 +26,11 @@ export function usePriceCalculation(
   product: Product,
 ): UsePriceCalculationResult {
   const [price, setPrice] = useState<PriceBreakdown | null>(null);
+  const [pricedFor, setPricedFor] = useState<{
+    config: Configuration;
+    product: Product;
+    refetchKey: number;
+  } | null>(null);
   const [formattedTotal, setFormattedTotal] = useState('$0.00');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -62,6 +67,7 @@ export function usePriceCalculation(
         if (ignore) return;
 
         setPrice(response.breakdown);
+        setPricedFor({ config: requestConfig, product, refetchKey });
         setFormattedTotal(response.formattedTotal);
       } catch {
         if (ignore) return;
@@ -87,8 +93,18 @@ export function usePriceCalculation(
     setRefetchKey((prev) => prev + 1);
   }, []);
 
+  // Reject stale prices during render, before the fetching effect sets isLoading.
+  const isPriceCurrent =
+    config !== null &&
+    pricedFor !== null &&
+    pricedFor.config.selections === selections &&
+    pricedFor.config.addOns === addOns &&
+    pricedFor.config.quantity === quantity &&
+    pricedFor.product === product &&
+    pricedFor.refetchKey === refetchKey;
+
   return {
-    price,
+    price: isPriceCurrent ? price : null,
     formattedTotal,
     isLoading,
     error,

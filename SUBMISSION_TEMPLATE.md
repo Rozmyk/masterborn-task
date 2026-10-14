@@ -2,7 +2,7 @@
 
 ## Time Spent
 
-Total time: **approximately 3 hours**.
+Total time: **approximately 3.5 hours**.
 
 ## Ticket Triage
 
@@ -74,13 +74,19 @@ I reviewed the `usePriceCalculation` hook and the mocked API implementation. I n
 
 I replaced the incorrect timestamp comparison with a cleanup mechanism inside `useEffect`. When pricing inputs change, previous requests are marked as outdated and their responses are ignored. The effect tracks selections, add-ons, quantity, and product rather than the entire configuration, so editing the draft name does not trigger another calculation. A ref updated in a preceding effect keeps request metadata current for the next calculation or explicit refetch.
 
+Each successful price response is also associated with its request configuration, product, and refetch counter. During render, the hook compares those pricing inputs with the current ones and returns `price: null` if they differ, even before the effect sets the loading state. The existing Add to Cart and Quick Add guards, in both buttons and handlers, require a price, no active calculation, and successful validation for the current configuration.
+
 **Why this approach?**
 
 This prevents outdated responses from overwriting newer prices without changing the API. It also handles component unmounting safely and avoids unnecessary calculations for metadata-only edits.
 
+The render-time check closes the gap between changing pricing inputs and starting the next effect. It compares immutable selections and add-on references, quantity, product, and refetch counter; name and timestamps are deliberately excluded. The previous formatted total may remain visible while loading, but it cannot be passed to the cart as a current price.
+
 **How did you verify it?**
 
 A Chromium fixture with controlled API responses verified that metadata edits do not refetch, while changes to pricing inputs and explicit refetch do. It also checked current request metadata, out-of-order responses, outdated failures, resetting a null configuration, and unmounting.
+
+For the follow-up price-freshness change, I reviewed the render-time comparison and both cart guards and ran `pnpm build`, `pnpm lint`, and `pnpm format:check`. No new tests or test frameworks were added. The earlier Chromium checks above predate this follow-up.
 
 ---
 
