@@ -220,7 +220,23 @@ export function encodeConfigurationToUrl(config: Configuration): string {
     n: config.name,
   });
 
-  return btoa(data);
+  const bytes = new TextEncoder().encode(data);
+  const binary = Array.from(bytes, (byte) => String.fromCharCode(byte)).join('');
+  return `v1:${btoa(binary)}`;
+}
+
+function isSelections(value: unknown): value is Configuration['selections'] {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    !Array.isArray(value) &&
+    Object.values(value).every(
+      (selection) =>
+        typeof selection === 'string' ||
+        typeof selection === 'boolean' ||
+        (typeof selection === 'number' && Number.isFinite(selection)),
+    )
+  );
 }
 
 /**
@@ -228,12 +244,36 @@ export function encodeConfigurationToUrl(config: Configuration): string {
  */
 export function decodeConfigurationFromUrl(encoded: string): Partial<Configuration> | null {
   try {
-    const data = JSON.parse(atob(encoded));
+    const isUtf8 = encoded.startsWith('v1:');
+    const payload = isUtf8 ? encoded.slice(3) : encoded;
+    const binary = atob(payload.replace(/ /g, '+'));
+    // Unversioned links use the original btoa(JSON) Latin-1 encoding.
+    const json = isUtf8
+      ? new TextDecoder('utf-8', { fatal: true }).decode(
+          Uint8Array.from(binary, (character) => character.charCodeAt(0)),
+        )
+      : binary;
+    const data: unknown = JSON.parse(json);
+    if (typeof data !== 'object' || data === null || Array.isArray(data)) return null;
+
+    const { s = {}, a = [], q = 1, n } = data as Record<string, unknown>;
+    if (
+      !isSelections(s) ||
+      !Array.isArray(a) ||
+      !a.every((id): id is string => typeof id === 'string') ||
+      typeof q !== 'number' ||
+      !Number.isSafeInteger(q) ||
+      q < 1 ||
+      (n !== undefined && typeof n !== 'string')
+    ) {
+      return null;
+    }
+
     return {
-      selections: data.s || {},
-      addOns: data.a || [],
-      quantity: data.q || 1,
-      name: data.n,
+      selections: s,
+      addOns: a,
+      quantity: q,
+      name: n,
     };
   } catch (e) {
     console.error('Failed to decode configuration:', e);

@@ -188,6 +188,8 @@
 }
 
 .toggle-switch {
+  border: 0;
+  padding: 0;
   position: relative;
   width: 48px;
   height: 26px;
@@ -473,13 +475,20 @@
 
 /* Modal */
 .modal-overlay {
+  border: 0;
+  padding: 0;
+  margin: 0;
+  width: 100%;
+  height: 100%;
+  max-width: none;
+  max-height: none;
   position: fixed;
   top: 0;
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(0, 0, 0, 0.5);
-  display: flex;
+  background: transparent;
+  display: none;
   align-items: center;
   justify-content: center;
   z-index: 1000;
@@ -619,9 +628,6 @@
   outline-offset: 2px;
 }
 
-/* Missing focus style for color swatches - accessibility issue */
-/* .color-swatch:focus { } */
-
 /* Draft List in Modal */
 .draft-list {
   list-style: none;
@@ -680,4 +686,24 @@
 .config-summary-item span:last-child {
   font-weight: 500;
   color: #333;
+}
+
+.modal-overlay[open] {
+  display: flex;
+}
+.modal-overlay::backdrop {
+  background: rgba(0, 0, 0, 0.5);
+}
+.addon-name,
+.addon-description {
+  display: block;
+}
+.color-swatch:disabled,
+.toggle-switch:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+.configurator :is(button, input, select):focus-visible {
+  outline: 3px solid #165a96;
+  outline-offset: 3px;
 }
