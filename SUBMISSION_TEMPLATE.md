@@ -16,17 +16,17 @@ Total time: **approximately 3 hours**.
 
 ### Tickets I Deprioritized
 
-| Ticket  | Reason                                                                                                                                                                    |
-| ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| CFG-146 | ISO storage and local-time formatting are already present. I did not establish a timezone conversion defect; a concrete failing timestamp and timezone are needed.        |
-| CFG-149 | The existing `price-loading` class already dims the price during calculation. Additional loading polish was lower priority than correctness.                              |
-| CFG-150 | The screenshot is missing. The current layout uses flexbox and does not consume `--color-columns`, so changing the suggested calculation alone would not establish a fix. |
-| CFG-151 | Partially improved: validation failures and their reasons are visible. A full rewrite of technical error messages and recovery actions remains outside scope.             |
-| CFG-153 | Comparing configurations is a substantial new feature and does not fit this exercise's time budget.                                                                       |
-| CFG-155 | Dark mode is useful but was explicitly described as non-critical for the demo.                                                                                            |
-| CFG-156 | The listed option renders already have keys; colors and add-ons now use stable IDs as part of CFG-152. I did not claim a separate missing-key fix.                        |
-| CFG-157 | Reliable dirty-state tracking needs to precede navigation warnings. The exact host navigation and Save & Close behavior also need agreement.                              |
-| CFG-158 | `currentConfig` is already memoized and the demo imports a stable product object. Further optimization needs profiling rather than another blanket `useMemo`.             |
+| Ticket  | Reason                                                                                                                                                                                                                                                                                                                    |
+| ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| CFG-146 | ISO storage and local-time formatting are already present. I did not establish a timezone conversion defect; a concrete failing timestamp and timezone are needed.                                                                                                                                                        |
+| CFG-149 | The existing loading state dims the price, but the previous total and breakdown remain visible while selections update immediately. This can briefly make costs appear inconsistent. Further presentation changes were deferred pending the UX decision below; targeted tests did not reproduce quantities being ignored. |
+| CFG-150 | The screenshot is missing. The current layout uses flexbox and does not consume `--color-columns`, so changing the suggested calculation alone would not establish a fix.                                                                                                                                                 |
+| CFG-151 | Partially improved: validation failures and their reasons are visible. A full rewrite of technical error messages and recovery actions remains outside scope.                                                                                                                                                             |
+| CFG-153 | Comparing configurations is a substantial new feature and does not fit this exercise's time budget.                                                                                                                                                                                                                       |
+| CFG-155 | Dark mode is useful but was explicitly described as non-critical for the demo.                                                                                                                                                                                                                                            |
+| CFG-156 | The listed option renders already have keys; colors and add-ons now use stable IDs as part of CFG-152. I did not claim a separate missing-key fix.                                                                                                                                                                        |
+| CFG-157 | Reliable dirty-state tracking needs to precede navigation warnings. The exact host navigation and Save & Close behavior also need agreement.                                                                                                                                                                              |
+| CFG-158 | `currentConfig` is already memoized and the demo imports a stable product object. Further optimization needs profiling rather than another blanket `useMemo`.                                                                                                                                                             |
 
 ### Tickets That Need Clarification
 
@@ -222,6 +222,9 @@ In Chromium, I ran five mount/unmount cycles under StrictMode. Each mounted conf
 2. Which approved pricing specification defines quantity thresholds and discount rates?
 3. Can QA provide the mobile alignment screenshot, viewport, and a concrete failing timezone example?
 4. What browsers and embedding environments must the widget support, particularly for modal behavior and host navigation?
+5. Should add-on prices be explicitly labeled "per item", or should the summary show their total cost for the selected quantity? For example, Premium Engraving always displays $29.99, while the calculation multiplies that cost by quantity. The current presentation can make it look like a flat fee per order.
+6. Should color swatches show their price modifiers before selection, for example "Midnight Blue (+$25.00 per item)"? Currently, the tooltip only shows the color name, so the surcharge is only shown in the price breakdown after selection.
+7. While recalculating, should we keep the previous total and price breakdown visible but dimmed, or replace them with a "Recalculating…" state? Selections update immediately, so the previous prices can briefly appear inconsistent with the selected add-ons.
 
 ---
 
